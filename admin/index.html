@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin - Stih dana</title>
+  <link rel="stylesheet" href="../assets/css/main.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .admin-card {
+      width: min(100%, 840px);
+      padding: 2rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+    }
+
+    .admin-card h1 {
+      margin-bottom: 1rem;
+    }
+
+    .admin-card form {
+      margin-top: 1.5rem;
+    }
+
+    .admin-card textarea {
+      min-height: 8rem;
+      resize: vertical;
+    }
+
+    .message {
+      margin-top: 1rem;
+      padding: 0.8rem 1rem;
+      border-radius: 0.6rem;
+      background: rgba(255, 255, 255, 0.08);
+      display: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .login-box {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 0.8rem;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .verse-list {
+      margin-top: 1.5rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .verse-item {
+      padding: 0.9rem 1rem;
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .verse-item strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="admin-card">
+    <div id="login-panel" class="login-box">
+      <h1>Admin panel</h1>
+      <p>Unesi lozinku da otvoriš upravljanje stihovima.</p>
+      <form id="login-form">
+        <div class="field">
+          <label for="admin-password">Lozinka</label>
+          <input id="admin-password" name="adminPassword" type="password" required />
+        </div>
+        <ul class="actions">
+          <li><button type="submit" class="button primary">Uđi</button></li>
+          <li><a href="../index.html" class="button">Nazad na sajt</a></li>
+        </ul>
+      </form>
+      <div id="login-message" class="message"></div>
+    </div>
+
+    <div id="admin-content" class="hidden">
+      <h1>Admin panel</h1>
+      <p>Dodaj više stihova. Sistem će ih redom prikazivati jedan po danu i nakon toga birati onaj sa najmanje prikaza.</p>
+      <form id="verse-form">
+        <div class="field">
+          <label for="verse-text">Stih</label>
+          <textarea id="verse-text" name="verseText" required></textarea>
+        </div>
+        <div class="field">
+          <label for="verse-author">Autor / izvor</label>
+          <input id="verse-author" name="verseAuthor" type="text" placeholder="npr. Pz 23,4" />
+        </div>
+        <ul class="actions">
+          <li><button type="submit" class="button primary">Dodaj stih</button></li>
+          <li><a href="../index.html" class="button">Nazad na sajt</a></li>
+        </ul>
+      </form>
+      <div id="message" class="message"></div>
+
+      <div class="verse-list" id="verse-list"></div>
+    </div>
+  </main>
+
+  <script src="../assets/js/verse.js"></script>
+  <script>
+    const form = document.getElementById('verse-form');
+    const loginForm = document.getElementById('login-form');
+    const messageBox = document.getElementById('message');
+    const loginMessage = document.getElementById('login-message');
+    const verseText = document.getElementById('verse-text');
+    const verseAuthor = document.getElementById('verse-author');
+    const verseList = document.getElementById('verse-list');
+    const loginPanel = document.getElementById('login-panel');
+    const adminContent = document.getElementById('admin-content');
+    const ADMIN_PASSWORD = 'sion2026';
+
+    function showAdmin() {
+      loginPanel.classList.add('hidden');
+      adminContent.classList.remove('hidden');
+      sessionStorage.setItem('verseAdminAuth', 'true');
+    }
+
+    function showLogin() {
+      loginPanel.classList.remove('hidden');
+      adminContent.classList.add('hidden');
+      sessionStorage.removeItem('verseAdminAuth');
+    }
+
+    if (sessionStorage.getItem('verseAdminAuth') === 'true') {
+      showAdmin();
+    } else {
+      showLogin();
+    }
+
+    loginForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      const password = document.getElementById('admin-password').value;
+      if (password === ADMIN_PASSWORD) {
+        showAdmin();
+        loginMessage.style.display = 'none';
+      } else {
+        loginMessage.textContent = 'Pogrešna lozinka.';
+        loginMessage.style.display = 'block';
+      }
+    });
+
+    function renderList(verses) {
+      if (!verses.length) {
+        verseList.innerHTML = '<div class="verse-item">Nema još sačuvanih stihova.</div>';
+        return;
+      }
+
+      verseList.innerHTML = verses.map(function (verse) {
+        return '<div class="verse-item"><strong>' + (verse.text || '') + '</strong><span>' + (verse.author || 'Bez autora') + '</span><br /><small>Prikazan ' + (verse.showCount || 0) + ' puta</small></div>';
+      }).join('');
+    }
+
+    function loadVerses() {
+      window.verseManager.listVerses().then(function (verses) {
+        renderList(verses);
+      });
+    }
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      const text = verseText.value.trim();
+      const author = verseAuthor.value.trim();
+
+      if (!text) {
+        messageBox.textContent = 'Unesi tekst stiha.';
+        messageBox.style.display = 'block';
+        return;
+      }
+
+      window.verseManager.addVerse(text, author).then(function () {
+        verseText.value = '';
+        verseAuthor.value = '';
+        messageBox.textContent = 'Stih je sačuvan.';
+        messageBox.style.display = 'block';
+        loadVerses();
+      });
+    });
+
+    loadVerses();
+  </script>
+</body>
+</html>

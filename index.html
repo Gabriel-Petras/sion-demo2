@@ -24,6 +24,36 @@
 				object-fit: contain;
 				border-radius: 0;
 			}
+
+			#verse-display {
+				font-size: 1.15rem;
+				line-height: 1.7;
+				font-style: italic;
+				margin: 0;
+			}
+
+			.verse-box {
+				margin-top: 1.25rem;
+				padding: 1rem 1.25rem;
+				border: 1px solid rgba(255, 255, 255, 0.16);
+				border-radius: 0.8rem;
+				background: rgba(255, 255, 255, 0.06);
+				box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+			}
+
+			.verse-meta {
+				margin-top: 0.6rem;
+				font-size: 0.9rem;
+				opacity: 0.8;
+			}
+
+			.admin-link {
+				display: inline-block;
+				margin-top: 1rem;
+				font-size: 0.95rem;
+				color: #ffffff;
+				text-decoration: underline;
+			}
 		</style>
 		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
 	</head>
@@ -32,8 +62,7 @@
 		<div class="language-switcher">
 			<a href="#" class="lang-button">Slovenský</a>
 			<a href="#" class="lang-button active">Srpski</a>
-			<a href="#" class="lang-button">English</a>
-			<a href="#" class="lang-button admin-button">Admin</a>
+			<a href="#" class="lang-button">English</a>`
 		</div>
 
 		<!-- Wrapper -->
@@ -47,7 +76,11 @@
 						<div class="content">
 							<div class="inner">
 								<h1>Stih dana</h1>
+							<div class="verse-box">
 								<p id="verse-display">Učitavanje stiha dana...</p>
+								<p class="verse-meta" id="verse-date">Učitavanje...</p>
+							</div>
+							<a class="admin-link" href="admin/">Promeni stih</a>
 							</div>
 						</div>
 						<nav>
@@ -341,6 +374,7 @@ print 'It took ' + i + ' iterations to sort the deck.';</code></pre>
 			<script src="assets/js/breakpoints.min.js"></script>
 			<script src="assets/js/util.js"></script>
 			<script src="assets/js/main.js"></script>
+			<script src="assets/js/verse.js"></script>
 
 	</body>
 </html>
