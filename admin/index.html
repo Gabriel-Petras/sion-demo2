@@ -30,9 +30,20 @@
       margin-top: 1.5rem;
     }
 
+    .admin-card textarea, .admin-card input[type="text"], .admin-card input[type="email"], .admin-card input[type="password"] {
+      min-height: 2.5rem;
+      resize: vertical;
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.2);
+      color: inherit;
+      box-sizing: border-box;
+    }
+
     .admin-card textarea {
       min-height: 8rem;
-      resize: vertical;
     }
 
     .message {
@@ -70,30 +81,69 @@
       display: block;
       margin-bottom: 0.25rem;
     }
+
+    .verse-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .verse-actions .button {
+      padding: 0.45rem 0.8rem;
+      font-size: 0.9rem;
+      min-width: 5rem;
+    }
+
+    .verse-actions .button.danger {
+      background: rgba(255, 80, 80, 0.2) !important;
+      border-color: rgba(255, 80, 80, 0.35);
+    }
+
+    .logout-btn {
+      background: rgba(255, 50, 50, 0.2) !important;
+      border: 1px solid rgba(255, 50, 50, 0.4);
+      padding: 0.5rem 1rem !important;
+      font-size: 0.9rem;
+    }
   </style>
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <main class="admin-card">
+    <!-- PANEL ZA PRIJAVU -->
     <div id="login-panel" class="login-box">
       <h1>Admin panel</h1>
-      <p>Unesi lozinku da otvoriš upravljanje stihovima.</p>
+      <p>Unesi email i lozinku da otvoriš upravljanje stihovima.</p>
       <form id="login-form">
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" name="adminEmail" type="email" required placeholder="tvoj@email.com" />
+        </div>
         <div class="field">
           <label for="admin-password">Lozinka</label>
           <input id="admin-password" name="adminPassword" type="password" required />
         </div>
         <ul class="actions">
-          <li><button type="submit" class="button primary">Uđi</button></li>
+          <li><button type="submit" class="button primary" id="login-btn">Uđi</button></li>
           <li><a href="../index.html" class="button">Nazad na sajt</a></li>
         </ul>
       </form>
       <div id="login-message" class="message"></div>
     </div>
 
+    <!-- PANEL ZA UPRAVLJANJE (Skriven dok se ne uloguješ) -->
     <div id="admin-content" class="hidden">
-      <h1>Admin panel</h1>
-      <p>Dodaj više stihova. Sistem će ih redom prikazivati jedan po danu i nakon toga birati onaj sa najmanje prikaza.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h1 style="margin-bottom: 0;">Upravljanje stihovima</h1>
+        <button type="button" id="logout-btn" class="button logout-btn">Odjavi se</button>
+      </div>
+      
+      <p>Dodaj više stihova. Sistem će ih redom prikazivati jedan po dan i nakon toga birati onaj sa najmanje prikaza.</p>
+      
       <form id="verse-form">
+        <input id="editing-verse-id" type="hidden" value="" />
         <div class="field">
           <label for="verse-text">Stih</label>
           <textarea id="verse-text" name="verseText" required></textarea>
@@ -103,97 +153,283 @@
           <input id="verse-author" name="verseAuthor" type="text" placeholder="npr. Pz 23,4" />
         </div>
         <ul class="actions">
-          <li><button type="submit" class="button primary">Dodaj stih</button></li>
+          <li><button type="submit" class="button primary" id="save-btn">Dodaj stih</button></li>
+          <li><button type="button" class="button" id="cancel-edit-btn" style="display:none;">Otkaži izmene</button></li>
           <li><a href="../index.html" class="button">Nazad na sajt</a></li>
         </ul>
       </form>
       <div id="message" class="message"></div>
 
-      <div class="verse-list" id="verse-list"></div>
+      <h3 style="margin-top: 2rem; margin-bottom: 0.5rem;">Sačuvani stihovi</h3>
+      <div class="verse-list" id="verse-list">
+        <div class="verse-item">Učitavanje...</div>
+      </div>
     </div>
   </main>
 
+  <!-- Tvoj postojeći verse.js (mora biti učitan nakon Supabase CDN-a) -->
   <script src="../assets/js/verse.js"></script>
-  <script>
-    const form = document.getElementById('verse-form');
-    const loginForm = document.getElementById('login-form');
-    const messageBox = document.getElementById('message');
-    const loginMessage = document.getElementById('login-message');
-    const verseText = document.getElementById('verse-text');
-    const verseAuthor = document.getElementById('verse-author');
-    const verseList = document.getElementById('verse-list');
-    const loginPanel = document.getElementById('login-panel');
-    const adminContent = document.getElementById('admin-content');
-    const ADMIN_PASSWORD = 'sion2026';
+  
+   <script>
+    // Čekamo da se ceo HTML učita pre izvršavanja
+    document.addEventListener('DOMContentLoaded', function() {
+      
+      // 1. Konfiguracija
+      const SUPABASE_URL = 'https://odnnztyftzznebwqkvso.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbm56dHlmdHp6bmVid3FrdnNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NTUxNjEsImV4cCI6MjA5OTQzMTE2MX0.3s9Z5iPKDE4YcjI4ZyBWOjT38uHcwQMv9-0C0Hk0bRU';
+      
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function showAdmin() {
-      loginPanel.classList.add('hidden');
-      adminContent.classList.remove('hidden');
-      sessionStorage.setItem('verseAdminAuth', 'true');
-    }
+      // 2. Elementi DOM-a
+      const form = document.getElementById('verse-form');
+      const loginForm = document.getElementById('login-form');
+      const messageBox = document.getElementById('message');
+      const loginMessage = document.getElementById('login-message');
+      const verseText = document.getElementById('verse-text');
+      const verseAuthor = document.getElementById('verse-author');
+      const verseList = document.getElementById('verse-list');
+      const loginPanel = document.getElementById('login-panel');
+      const adminContent = document.getElementById('admin-content');
+      const loginBtn = document.getElementById('login-btn');
+      const saveBtn = document.getElementById('save-btn');
+      const cancelEditBtn = document.getElementById('cancel-edit-btn');
+      const editingVerseId = document.getElementById('editing-verse-id');
 
-    function showLogin() {
-      loginPanel.classList.remove('hidden');
-      adminContent.classList.add('hidden');
-      sessionStorage.removeItem('verseAdminAuth');
-    }
-
-    if (sessionStorage.getItem('verseAdminAuth') === 'true') {
-      showAdmin();
-    } else {
-      showLogin();
-    }
-
-    loginForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      const password = document.getElementById('admin-password').value;
-      if (password === ADMIN_PASSWORD) {
-        showAdmin();
-        loginMessage.style.display = 'none';
-      } else {
-        loginMessage.textContent = 'Pogrešna lozinka.';
-        loginMessage.style.display = 'block';
-      }
-    });
-
-    function renderList(verses) {
-      if (!verses.length) {
-        verseList.innerHTML = '<div class="verse-item">Nema još sačuvanih stihova.</div>';
-        return;
+      // 3. Funkcije za prikaz
+      function showAdmin() {
+        console.log(">>> FUNKCIJA: showAdmin() pozvana");
+        loginPanel.classList.add('hidden');
+        adminContent.classList.remove('hidden');
+        console.log("Login panel klase:", loginPanel.className);
+        console.log("Admin content klase:", adminContent.className);
       }
 
-      verseList.innerHTML = verses.map(function (verse) {
-        return '<div class="verse-item"><strong>' + (verse.text || '') + '</strong><span>' + (verse.author || 'Bez autora') + '</span><br /><small>Prikazan ' + (verse.showCount || 0) + ' puta</small></div>';
-      }).join('');
-    }
-
-    function loadVerses() {
-      window.verseManager.listVerses().then(function (verses) {
-        renderList(verses);
-      });
-    }
-
-    form.addEventListener('submit', function (event) {
-      event.preventDefault();
-      const text = verseText.value.trim();
-      const author = verseAuthor.value.trim();
-
-      if (!text) {
-        messageBox.textContent = 'Unesi tekst stiha.';
-        messageBox.style.display = 'block';
-        return;
+      function showLogin() {
+        console.log(">>> FUNKCIJA: showLogin() pozvana");
+        loginPanel.classList.remove('hidden');
+        adminContent.classList.add('hidden');
+        verseList.innerHTML = '';
       }
 
-      window.verseManager.addVerse(text, author).then(function () {
+      function resetForm() {
+        editingVerseId.value = '';
         verseText.value = '';
         verseAuthor.value = '';
-        messageBox.textContent = 'Stih je sačuvan.';
-        messageBox.style.display = 'block';
-        loadVerses();
-      });
-    });
+        saveBtn.textContent = 'Dodaj stih';
+        cancelEditBtn.style.display = 'none';
+      }
 
-    loadVerses();
+      function startEdit(verse) {
+        editingVerseId.value = verse.id;
+        verseText.value = verse.text || '';
+        verseAuthor.value = verse.author || '';
+        saveBtn.textContent = 'Sačuvaj izmene';
+        cancelEditBtn.style.display = 'inline-block';
+        verseText.focus();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // 4. Provera sesije na startu
+      async function checkSession() {
+        console.log("Provera sesije na startu stranice...");
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log("Sesija pronađena! Učitavam admin panel.");
+            showAdmin();
+            loadVerses();
+          } else {
+            console.log("Nema aktivne sesije. Prikazujem login.");
+            showLogin();
+          }
+        } catch (err) {
+          console.error("Greška pri proveri sesije:", err);
+        }
+      }
+
+      // 5. Rukovanje prijavom (SA DETALJNIM LOGOVIMA)
+      loginForm.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        event.stopPropagation(); // Sprečava bilo kakvo dalje prosleđivanje događaja
+        
+        console.log(">>> POČETAK PRIJAVE: event.preventDefault() je uspeo.");
+        
+        const email = document.getElementById('admin-email').value;
+        const password = document.getElementById('admin-password').value;
+
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Provera...';
+        loginMessage.style.display = 'block';
+        loginMessage.style.color = '#ffa500'; // Narandžasta za "u toku"
+        loginMessage.textContent = 'Komunikacija sa bazom...';
+
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+          });
+
+          console.log(">>> ODGOVOR OD SUPABASE-A:", { data, error });
+
+          if (error) {
+            console.error(">>> GREŠKA PRIJAVE:", error.message);
+            loginMessage.textContent = 'Greška: ' + error.message;
+            loginMessage.style.color = '#ff6b6b';
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Uđi';
+          } else {
+            console.log(">>> PRIJAVA USPEŠNA! Prelazak na admin panel...");
+            loginMessage.textContent = 'Uspešno! Učitavanje panela...';
+            
+            showAdmin();
+            loadVerses();
+            
+            // Resetuj formu
+            document.getElementById('admin-email').value = '';
+            document.getElementById('admin-password').value = '';
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Uđi';
+            
+            // Sakrij poruku nakon uspeha
+            setTimeout(() => {
+              loginMessage.style.display = 'none';
+            }, 1000);
+            
+            console.log(">>> PROCES PRIJAVE ZAVRŠEN.");
+          }
+        } catch (err) {
+          console.error(">>> NEOČEKIVANA GREŠKA (CATCH):", err);
+          loginMessage.textContent = 'Neočekivana greška: ' + err.message;
+          loginMessage.style.color = '#ff6b6b';
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Uđi';
+        }
+      });
+
+      // 6. Odjava
+      document.getElementById('logout-btn').addEventListener('click', async function () {
+        console.log("Odjava...");
+        await supabase.auth.signOut();
+        resetForm();
+        showLogin();
+      });
+
+      cancelEditBtn.addEventListener('click', function () {
+        resetForm();
+      });
+
+      // 7. Učitavanje liste stihova
+      function loadVerses() {
+        console.log("Učitavanje stihova...");
+        verseList.innerHTML = '<div class="verse-item">Učitavanje...</div>';
+        
+        if (typeof window.verseManager === 'undefined') {
+          console.error("window.verseManager NIJE PRONAĐEN! Proverite verse.js");
+          verseList.innerHTML = '<div class="verse-item" style="color:#ff6b6b;">Greška: verse.js nije učitan ili je neispravan.</div>';
+          return;
+        }
+
+        window.verseManager.listVerses().then(function (verses) {
+          console.log("Stihovi učitani:", verses);
+          if (!verses || !verses.length) {
+            verseList.innerHTML = '<div class="verse-item">Nema još sačuvanih stihova.</div>';
+            return;
+          }
+
+          verseList.innerHTML = verses.map(function (verse) {
+            return '<div class="verse-item">' +
+                   '<strong>' + (verse.text || '') + '</strong>' +
+                   '<span>' + (verse.author || 'Bez autora') + '</span><br />' +
+                   '<small>Prikazan ' + (verse.showCount || 0) + ' puta</small>' +
+                   '<div class="verse-actions">' +
+                     '<button type="button" class="button" data-action="edit" data-id="' + verse.id + '">Uredi</button>' +
+                     '<button type="button" class="button danger" data-action="delete" data-id="' + verse.id + '">Obriši</button>' +
+                   '</div></div>';
+          }).join('');
+        }).catch(function (error) {
+          console.error("Greška pri učitavanju stihova:", error);
+          verseList.innerHTML = '<div class="verse-item" style="color:#ff6b6b;">Nije moguće učitati stihove.</div>';
+          messageBox.textContent = 'Greška: ' + (error.message || error);
+          messageBox.style.color = '#ff6b6b';
+          messageBox.style.display = 'block';
+        });
+      }
+
+      // 8. Delegacija događaja za listu (Uredi / Obriši)
+      verseList.addEventListener('click', function (event) {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+
+        const action = button.getAttribute('data-action');
+        const id = button.getAttribute('data-id');
+
+        if (action === 'edit') {
+          window.verseManager.listVerses().then(function (verses) {
+            const verse = verses.find(function (item) {
+              return item.id == id; // == umesto === zbog tipova podataka
+            });
+            if (verse) startEdit(verse);
+          });
+          return;
+        }
+
+        if (action === 'delete') {
+          const confirmed = window.confirm('Da li zaista želiš da obrišeš ovaj stih?');
+          if (!confirmed) return;
+
+          window.verseManager.deleteVerse(id).then(function () {
+            messageBox.textContent = 'Stih je obrisan.';
+            messageBox.style.color = '#51cf66';
+            messageBox.style.display = 'block';
+            loadVerses();
+          }).catch(function (error) {
+            messageBox.textContent = 'Greška pri brisanju: ' + (error.message || error);
+            messageBox.style.color = '#ff6b6b';
+            messageBox.style.display = 'block';
+          });
+        }
+      });
+
+      // 9. Dodavanje ili izmena stiha
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const text = verseText.value.trim();
+        const author = verseAuthor.value.trim();
+
+        if (!text) {
+          messageBox.textContent = 'Unesi tekst stiha.';
+          messageBox.style.color = '#ff6b6b';
+          messageBox.style.display = 'block';
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Čuvanje...';
+
+        const savePromise = editingVerseId.value
+          ? window.verseManager.updateVerse(editingVerseId.value, text, author)
+          : window.verseManager.addVerse(text, author);
+
+        savePromise.then(function () {
+          resetForm();
+          messageBox.textContent = editingVerseId.value ? 'Stih je uspešno izmenjen!' : 'Stih je uspešno sačuvan!';
+          messageBox.style.color = '#51cf66';
+          messageBox.style.display = 'block';
+          loadVerses();
+        }).catch(function (error) {
+          messageBox.textContent = 'Greška pri čuvanju: ' + (error.message || error);
+          messageBox.style.color = '#ff6b6b';
+          messageBox.style.display = 'block';
+        }).finally(function () {
+          saveBtn.disabled = false;
+          saveBtn.textContent = editingVerseId.value ? 'Sačuvaj izmene' : 'Dodaj stih';
+        });
+      });
+
+      // Pokreni proveru sesije odmah
+      checkSession();
+      
+    }); // Kraj DOMContentLoaded
   </script>
 </body>
 </html>

@@ -32,6 +32,12 @@
 				margin: 0;
 			}
 
+			.verse-link {
+				display: block;
+				text-decoration: none;
+				color: inherit;
+			}
+
 			.verse-box {
 				margin-top: 1.25rem;
 				padding: 1rem 1.25rem;
@@ -39,6 +45,13 @@
 				border-radius: 0.8rem;
 				background: rgba(255, 255, 255, 0.06);
 				box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+				cursor: pointer;
+				transition: transform 0.2s ease, background 0.2s ease;
+			}
+
+			.verse-box:hover {
+				transform: translateY(-2px);
+				background: rgba(255, 255, 255, 0.1);
 			}
 
 			.verse-meta {
@@ -56,6 +69,7 @@
 			}
 		</style>
 		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>	
 	</head>
 	<body class="is-preload">
 
@@ -76,10 +90,12 @@
 						<div class="content">
 							<div class="inner">
 								<h1>Stih dana</h1>
-							<div class="verse-box">
-								<p id="verse-display">Učitavanje stiha dana...</p>
-								<p class="verse-meta" id="verse-date">Učitavanje...</p>
-							</div>
+								<a href="#verse" class="verse-link">
+									<div class="verse-box">
+										<p id="verse-display">Učitavanje stiha dana...</p>
+										<p class="verse-meta" id="verse-date">Učitavanje...</p>
+									</div>
+								</a>
 							</div>
 						</div>
 						<nav>
@@ -95,7 +111,14 @@
 
 				<!-- Main -->
 					<div id="main">
-
+							<!-- verse -->
+								<article id="verse">
+									<h2 class="major">Stih dana</h2>
+									<div class="verse-box">
+										<p id="verse-modal-text">Učitavanje stiha dana...</p>
+										<p class="verse-meta" id="verse-modal-author">Učitavanje...</p>
+									</div>
+								</article>
 						<!-- pancevo -->
 							<article id="pancevo">
 								<h2 class="major">pančevo</h2>
