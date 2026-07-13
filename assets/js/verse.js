@@ -16,6 +16,7 @@
       id: verse.id,
       text: verse.text || '',
       author: verse.author || '',
+      komentar: verse.komentar || '', // NOVO: Dodato polje komentar
       showCount: Number(verse.show_count || 0),
       createdAt: verse.created_at || null
     };
@@ -47,12 +48,14 @@
     }
   }
 
-  async function addVerse(text, author) {
+  // NOVO: Dodat parametar 'komentar' sa default vrednošću
+  async function addVerse(text, author, komentar = '') {
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .insert({
         text: text.trim(),
         author: author.trim() || null,
+        komentar: komentar.trim() || null, // NOVO: Čuvanje komentara
         show_count: 0,
         created_at: new Date().toISOString()
       })
@@ -66,12 +69,14 @@
     return normalizeVerse(data);
   }
 
-  async function updateVerse(id, text, author) {
+  // NOVO: Dodat parametar 'komentar' sa default vrednošću
+  async function updateVerse(id, text, author, komentar = '') {
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .update({
         text: text.trim(),
-        author: author.trim() || null
+        author: author.trim() || null,
+        komentar: komentar.trim() || null // NOVO: Ažuriranje komentara
       })
       .eq('id', id)
       .select()
@@ -95,10 +100,11 @@
     }
   }
 
+  // NOVO: Dodat 'komentar' u select upit
   async function listVerses() {
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .select('id, text, author, show_count, created_at')
+      .select('id, text, author, komentar, show_count, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -108,62 +114,40 @@
     return (data || []).map(normalizeVerse);
   }
 
-  async function selectVerseForToday() {
+    async function selectVerseForToday() {
     const verses = await listVerses();
 
     if (!verses.length) {
       return null;
     }
 
-    const settings = getSettings();
-    const today = getTodayKey();
+    // 1. Get a number representing the current day of the year (1 to 366)
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
 
-    if (settings.lastShownDate === today && settings.selectedVerseId) {
-      const existingVerse = verses.find(function (verse) {
-        return verse.id === settings.selectedVerseId;
-      });
-
-      if (existingVerse) {
-        return existingVerse;
-      }
-    }
-
-    let selectedVerse = null;
-    let nextRotationIndex = settings.rotationIndex || 0;
-
-    if (nextRotationIndex < verses.length) {
-      selectedVerse = verses[nextRotationIndex];
-      nextRotationIndex += 1;
-    } else {
-      const minimumShows = Math.min.apply(null, verses.map(function (verse) {
-        return verse.showCount || 0;
-      }));
-      const candidates = verses.filter(function (verse) {
-        return (verse.showCount || 0) === minimumShows;
-      });
-      const randomIndex = Math.floor(Math.random() * candidates.length);
-      selectedVerse = candidates[randomIndex];
-    }
+    // 2. Use the day of the year to pick an index. 
+    // The modulo operator (%) ensures it loops back to 0 when it reaches the end of the list.
+    // Example: If you have 10 verses, Day 15 will pick index 5 (15 % 10 = 5).
+    const globalIndex = dayOfYear % verses.length;
+    const selectedVerse = verses[globalIndex];
 
     if (!selectedVerse) {
       return null;
     }
 
-    const updatedSettings = {
-      rotationIndex: nextRotationIndex,
-      lastShownDate: today,
-      selectedVerseId: selectedVerse.id
-    };
-
-    saveSettings(updatedSettings);
-
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .update({ show_count: (selectedVerse.showCount || 0) + 1 })
-      .eq('id', selectedVerse.id);
-
-    if (error) {
-      throw error;
+    // 3. (Optional but recommended) Still update the showCount in the database 
+    // so your admin panel can track which verses are popular, 
+    // but we do it safely without breaking the global selection.
+    try {
+      await supabase
+        .from(TABLE_NAME)
+        .update({ show_count: (selectedVerse.showCount || 0) + 1 })
+        .eq('id', selectedVerse.id);
+    } catch (error) {
+      console.warn("Could not update show_count, but verse will still display:", error);
     }
 
     return Object.assign({}, selectedVerse, {
@@ -171,55 +155,63 @@
     });
   }
 
-  async function renderVerse() {
+    async function renderVerse() {
     const display = document.getElementById('verse-display');
     const dateBox = document.getElementById('verse-date');
+    const modalText = document.getElementById('verse-modal-text');
+    const modalAuthor = document.getElementById('verse-modal-author');
+    const modalComment = document.getElementById('verse-modal-comment'); // NOVO
 
     if (!display) {
       return;
     }
-
-    const modalText = document.getElementById('verse-modal-text');
-    const modalAuthor = document.getElementById('verse-modal-author');
 
     try {
       const verse = await selectVerseForToday();
 
       if (verse && verse.text) {
         const text = '“' + verse.text + '”';
+        
+        // Ažuriraj mali prikaz u zaglavlju
         display.textContent = text;
         if (dateBox) {
           dateBox.textContent = verse.author ? verse.author : 'Stih dana';
         }
+        
+        // Ažuriraj prošireni prikaz (modal)
         if (modalText) {
           modalText.textContent = text;
         }
         if (modalAuthor) {
           modalAuthor.textContent = verse.author ? verse.author : 'Stih dana';
         }
+
+        // NOVO: Ažuriraj i prikaži komentar ako postoji
+        if (modalComment) {
+          if (verse.komentar && verse.komentar.trim() !== '') {
+            modalComment.textContent = verse.komentar;
+            modalComment.style.display = 'block'; // Prikaži ga
+          } else {
+            modalComment.style.display = 'none'; // Sakrij ga ako je prazan
+          }
+        }
+
       } else {
+        // Fallback ako nema stihova
         display.textContent = 'Nema unetog stiha još.';
-        if (dateBox) {
-          dateBox.textContent = 'Dodaj stih preko admin stranice';
-        }
-        if (modalText) {
-          modalText.textContent = 'Nema unetog stiha još.';
-        }
-        if (modalAuthor) {
-          modalAuthor.textContent = 'Dodaj stih preko admin stranice';
-        }
+        if (dateBox) dateBox.textContent = 'Dodaj stih preko admin stranice';
+        if (modalText) modalText.textContent = 'Nema unetog stiha još.';
+        if (modalAuthor) modalAuthor.textContent = 'Dodaj stih preko admin stranice';
+        if (modalComment) modalComment.style.display = 'none'; // Sakrij komentar
       }
     } catch (error) {
+      // Fallback ako dođe do greške
+      console.error("Greška pri učitavanju stiha:", error);
       display.textContent = 'Nije moguće učitati stih trenutno.';
-      if (dateBox) {
-        dateBox.textContent = 'Proveri Supabase konekciju i dozvole.';
-      }
-      if (modalText) {
-        modalText.textContent = 'Nije moguće učitati stih trenutno.';
-      }
-      if (modalAuthor) {
-        modalAuthor.textContent = 'Proveri Supabase konekciju i dozvole.';
-      }
+      if (dateBox) dateBox.textContent = 'Proveri Supabase konekciju i dozvole.';
+      if (modalText) modalText.textContent = 'Nije moguće učitati stih trenutno.';
+      if (modalAuthor) modalAuthor.textContent = 'Proveri Supabase konekciju i dozvole.';
+      if (modalComment) modalComment.style.display = 'none'; // Sakrij komentar
     }
   }
 

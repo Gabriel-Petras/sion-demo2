@@ -152,6 +152,10 @@
           <label for="verse-author">Autor / izvor</label>
           <input id="verse-author" name="verseAuthor" type="text" placeholder="npr. Pz 23,4" />
         </div>
+        <div class="field">
+          <label for="verse-comment">Komentar / beleška (opciono)</label>
+          <textarea id="verse-comment" name="verseComment" style="min-height: 4rem;"></textarea>
+        </div>
         <ul class="actions">
           <li><button type="submit" class="button primary" id="save-btn">Dodaj stih</button></li>
           <li><button type="button" class="button" id="cancel-edit-btn" style="display:none;">Otkaži izmene</button></li>
@@ -215,6 +219,7 @@
         editingVerseId.value = '';
         verseText.value = '';
         verseAuthor.value = '';
+        document.getElementById('verse-comment').value = '';
         saveBtn.textContent = 'Dodaj stih';
         cancelEditBtn.style.display = 'none';
       }
@@ -223,6 +228,7 @@
         editingVerseId.value = verse.id;
         verseText.value = verse.text || '';
         verseAuthor.value = verse.author || '';
+        document.getElementById('verse-comment').value = verse.komentar || '';
         saveBtn.textContent = 'Sačuvaj izmene';
         cancelEditBtn.style.display = 'inline-block';
         verseText.focus();
