@@ -100,7 +100,6 @@
     }
   }
 
-  // NOVO: Dodat 'komentar' u select upit
   async function listVerses() {
     const { data, error } = await supabase
       .from(TABLE_NAME)
@@ -114,40 +113,63 @@
     return (data || []).map(normalizeVerse);
   }
 
-    async function selectVerseForToday() {
+  async function selectVerseForToday() {
     const verses = await listVerses();
 
     if (!verses.length) {
       return null;
     }
 
-    // 1. Get a number representing the current day of the year (1 to 366)
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.floor(diff / oneDay);
+    const today = getTodayKey();
+    const settings = getSettings();
 
-    // 2. Use the day of the year to pick an index. 
-    // The modulo operator (%) ensures it loops back to 0 when it reaches the end of the list.
-    // Example: If you have 10 verses, Day 15 will pick index 5 (15 % 10 = 5).
-    const globalIndex = dayOfYear % verses.length;
-    const selectedVerse = verses[globalIndex];
+    if (settings.lastShownDate === today && settings.selectedVerseId) {
+      const existingVerse = verses.find(function (verse) {
+        return verse.id === settings.selectedVerseId;
+      });
+
+      if (existingVerse) {
+        return existingVerse;
+      }
+    }
+
+    const zeroShowVerses = verses.filter(function (verse) {
+      return (verse.showCount || 0) === 0;
+    });
+
+    let selectedVerse = null;
+
+    if (zeroShowVerses.length) {
+      selectedVerse = zeroShowVerses[zeroShowVerses.length - 1];
+    } else {
+      const minimumShows = Math.min.apply(null, verses.map(function (verse) {
+        return verse.showCount || 0;
+      }));
+      const candidates = verses.filter(function (verse) {
+        return (verse.showCount || 0) === minimumShows;
+      });
+      const randomIndex = Math.floor(Math.random() * candidates.length);
+      selectedVerse = candidates[randomIndex];
+    }
 
     if (!selectedVerse) {
       return null;
     }
 
-    // 3. (Optional but recommended) Still update the showCount in the database 
-    // so your admin panel can track which verses are popular, 
-    // but we do it safely without breaking the global selection.
+    const updatedSettings = {
+      lastShownDate: today,
+      selectedVerseId: selectedVerse.id
+    };
+
+    saveSettings(updatedSettings);
+
     try {
       await supabase
         .from(TABLE_NAME)
         .update({ show_count: (selectedVerse.showCount || 0) + 1 })
         .eq('id', selectedVerse.id);
     } catch (error) {
-      console.warn("Could not update show_count, but verse will still display:", error);
+      console.warn('Could not update show_count, but verse will still display:', error);
     }
 
     return Object.assign({}, selectedVerse, {
