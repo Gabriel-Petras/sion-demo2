@@ -159,6 +159,7 @@
         <ul class="actions">
           <li><button type="submit" class="button primary" id="save-btn">Dodaj stih</button></li>
           <li><button type="button" class="button" id="cancel-edit-btn" style="display:none;">Otkaži izmene</button></li>
+          <li><button type="button" class="button" id="force-send-btn">Pošalji današnji stih sada (force)</button></li>
           <li><a href="../index.html" class="button">Nazad na sajt</a></li>
         </ul>
       </form>
@@ -196,6 +197,7 @@
       const adminContent = document.getElementById('admin-content');
       const loginBtn = document.getElementById('login-btn');
       const saveBtn = document.getElementById('save-btn');
+      const forceSendBtn = document.getElementById('force-send-btn');
       const cancelEditBtn = document.getElementById('cancel-edit-btn');
       const editingVerseId = document.getElementById('editing-verse-id');
 
@@ -324,6 +326,36 @@
         resetForm();
       });
 
+      forceSendBtn.addEventListener('click', async function () {
+        if (!window.confirm('Poslati današnji stih svim aktivnim brojevima? Ovo može ponovo poslati SMS i naplatiti poruke.')) return;
+
+        forceSendBtn.disabled = true;
+        forceSendBtn.textContent = 'Slanje...';
+        messageBox.style.display = 'block';
+        messageBox.style.color = '#ffa500';
+        messageBox.textContent = 'Priprema SMS poruke...';
+
+        try {
+          const result = await window.verseManager.forceSendCurrentVerse();
+          if (result.smsNotificationError) {
+            messageBox.textContent = 'Greška pri slanju SMS-a: ' + result.smsNotificationError;
+            messageBox.style.color = '#ff6b6b';
+          } else if (result.smsSentTo === 0) {
+            messageBox.textContent = 'Nema aktivnih brojeva za SMS.';
+            messageBox.style.color = '#ffa500';
+          } else {
+            messageBox.textContent = 'Današnji stih je stavljen u red za slanje na ' + result.smsSentTo + ' aktivnih brojeva.';
+            messageBox.style.color = '#51cf66';
+          }
+        } catch (error) {
+          messageBox.textContent = 'Greška pri slanju: ' + (error.message || error);
+          messageBox.style.color = '#ff6b6b';
+        } finally {
+          forceSendBtn.disabled = false;
+          forceSendBtn.textContent = 'Pošalji današnji stih sada (force)';
+        }
+      });
+
       // 7. Učitavanje liste stihova
       function loadVerses() {
         console.log("Učitavanje stihova...");
@@ -411,15 +443,28 @@
 
         saveBtn.disabled = true;
         saveBtn.textContent = 'Čuvanje...';
+        const wasEditing = Boolean(editingVerseId.value);
 
-        const savePromise = editingVerseId.value
+        const savePromise = wasEditing
           ? window.verseManager.updateVerse(editingVerseId.value, text, author)
           : window.verseManager.addVerse(text, author);
 
-        savePromise.then(function () {
+        savePromise.then(function (savedVerse) {
           resetForm();
-          messageBox.textContent = editingVerseId.value ? 'Stih je uspešno izmenjen!' : 'Stih je uspešno sačuvan!';
-          messageBox.style.color = '#51cf66';
+          const saveMessage = wasEditing ? 'Stih je uspešno izmenjen!' : 'Stih je uspešno sačuvan!';
+          if (savedVerse.smsSkipped) {
+            messageBox.textContent = saveMessage + ' Tekst stiha nije promenjen, SMS nije ponovo poslat.';
+            messageBox.style.color = '#51cf66';
+          } else if (savedVerse.smsNotificationError) {
+            messageBox.textContent = saveMessage + ' Greška pri slanju SMS-a: ' + savedVerse.smsNotificationError;
+            messageBox.style.color = '#ffa500';
+          } else if (savedVerse.smsSentTo === 0) {
+            messageBox.textContent = saveMessage + ' Nema aktivnih brojeva za SMS.';
+            messageBox.style.color = '#ffa500';
+          } else {
+            messageBox.textContent = saveMessage + ' SMS je poslat na ' + savedVerse.smsSentTo + ' aktivnih brojeva.';
+            messageBox.style.color = '#51cf66';
+          }
           messageBox.style.display = 'block';
           loadVerses();
         }).catch(function (error) {
@@ -428,7 +473,7 @@
           messageBox.style.display = 'block';
         }).finally(function () {
           saveBtn.disabled = false;
-          saveBtn.textContent = editingVerseId.value ? 'Sačuvaj izmene' : 'Dodaj stih';
+          saveBtn.textContent = wasEditing ? 'Sačuvaj izmene' : 'Dodaj stih';
         });
       });
 

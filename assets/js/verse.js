@@ -22,6 +22,42 @@
     };
   }
 
+  async function sendVerseNotification(verse) {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-verse', {
+        body: { verseId: verse.id }
+      });
+
+      if (error) {
+        let message = error.message || 'SMS notification failed.';
+        if (message.indexOf('Failed to send a request to the Edge Function') !== -1) {
+          message = 'Supabase could not reach send-verse. Deploy the Edge Function and check browser network/CORS errors.';
+        }
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const responseBody = await error.context.json();
+            if (responseBody && responseBody.error) {
+              message = responseBody.error;
+              if (responseBody.sentTo > 0) {
+                message += ' SMS was already queued for ' + responseBody.sentTo + ' number(s).';
+              }
+            }
+          } catch {
+            // Keep the SDK error message if the response has no JSON body.
+          }
+        }
+        return { error: message };
+      }
+      if (data && data.error) {
+        return { error: data.error };
+      }
+      return { sentTo: Number(data && data.sentTo || 0) };
+    } catch (error) {
+      console.error('Could not request verse SMS notification:', error);
+      return { error: error.message || 'SMS notification failed.' };
+    }
+  }
+
   function getSettings() {
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
@@ -66,11 +102,26 @@
       throw error;
     }
 
-    return normalizeVerse(data);
+    const savedVerse = normalizeVerse(data);
+    const notification = await sendVerseNotification(savedVerse);
+    return Object.assign(savedVerse, {
+      smsSentTo: notification.sentTo,
+      smsNotificationError: notification.error || null
+    });
   }
 
   // NOVO: Dodat parametar 'komentar' sa default vrednošću
   async function updateVerse(id, text, author, komentar = '') {
+    const { data: previousVerse, error: previousError } = await supabase
+      .from(TABLE_NAME)
+      .select('text')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (previousError) {
+      throw previousError;
+    }
+
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .update({
@@ -86,7 +137,16 @@
       throw error;
     }
 
-    return normalizeVerse(data);
+    const savedVerse = normalizeVerse(data);
+    if (previousVerse && previousVerse.text === savedVerse.text) {
+      return Object.assign(savedVerse, { smsSkipped: true });
+    }
+
+    const notification = await sendVerseNotification(savedVerse);
+    return Object.assign(savedVerse, {
+      smsSentTo: notification.sentTo,
+      smsNotificationError: notification.error || null
+    });
   }
 
   async function deleteVerse(id) {
@@ -177,6 +237,19 @@
     });
   }
 
+  async function forceSendCurrentVerse() {
+    const verse = await selectVerseForToday();
+    if (!verse || !verse.text) {
+      throw new Error('Nema stiha koji može da se pošalje.');
+    }
+
+    const notification = await sendVerseNotification(verse);
+    return Object.assign({}, verse, {
+      smsSentTo: notification.sentTo,
+      smsNotificationError: notification.error || null
+    });
+  }
+
     async function renderVerse() {
     const display = document.getElementById('verse-display');
     const dateBox = document.getElementById('verse-date');
@@ -242,7 +315,8 @@
     updateVerse: updateVerse,
     deleteVerse: deleteVerse,
     listVerses: listVerses,
-    selectVerseForToday: selectVerseForToday
+    selectVerseForToday: selectVerseForToday,
+    forceSendCurrentVerse: forceSendCurrentVerse
   };
 
   window.addEventListener('load', renderVerse);

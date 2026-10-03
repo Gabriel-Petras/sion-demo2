@@ -60,6 +60,13 @@
 				opacity: 0.8;
 			}
 
+				/* Subscribe modal */
+				.subscribe-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
+				.subscribe-modal.visible { display: flex; }
+				.subscribe-panel { background: #111; padding: 1.25rem; border-radius: 0.6rem; width: 320px; max-width: calc(100% - 40px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+				.subscribe-panel h3 { margin-top: 0; }
+				.subscribe-close { position: absolute; right: 16px; top: 16px; background: transparent; border: 0; color:#fff; font-size: 1.1rem; cursor: pointer; }
+
 			.admin-link {
 				display: inline-block;
 				margin-top: 1rem;
@@ -110,6 +117,7 @@
 					</header>
 
 				<!-- Main -->
+								<li><a href="#" id="subscribe-button">Subscribe</a></li>
 					<div id="main">
 							<!-- verse -->
 								<article id="verse">
@@ -392,6 +400,27 @@ print 'It took ' + i + ' iterations to sort the deck.';</code></pre>
 		<!-- BG -->
 			<div id="bg"></div>
 
+			<!-- Subscribe Modal -->
+			<div id="subscribe-modal" class="subscribe-modal" role="dialog" aria-hidden="true">
+				<div class="subscribe-panel">
+					<button id="subscribe-close" class="subscribe-close">✕</button>
+					<h3>Subscribe</h3>
+					<p>Enter your phone number to receive updates.</p>
+					<form id="subscribe-form">
+						<div>
+							<label for="subscribe-phone">Phone</label>
+							<input id="subscribe-phone" name="phone" type="tel" placeholder="+381600000000" />
+						</div>
+						<!-- honeypot field to deter bots -->
+						<input id="subscribe-hp" name="hp" type="text" style="display:none" autocomplete="off" />
+						<div style="margin-top:0.6rem;"> 
+							<button type="submit" class="button">Submit</button>
+						</div>
+						<p id="subscribe-message" style="margin-top:0.6rem;color:#fff;"></p>
+					</form>
+				</div>
+			</div>
+
 		<!-- Scripts -->
 			<script src="assets/js/jquery.min.js"></script>
 			<script src="assets/js/browser.min.js"></script>
@@ -399,6 +428,7 @@ print 'It took ' + i + ' iterations to sort the deck.';</code></pre>
 			<script src="assets/js/util.js"></script>
 			<script src="assets/js/main.js"></script>
 			<script src="assets/js/verse.js"></script>
+			<script src="assets/js/subscribe.js"></script>
 
 	</body>
 </html>
