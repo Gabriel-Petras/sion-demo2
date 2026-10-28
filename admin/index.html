@@ -12,6 +12,7 @@
       align-items: center;
       justify-content: center;
       padding: 2rem;
+      box-sizing: border-box;
     }
 
     .admin-card {
@@ -20,6 +21,39 @@
       border-radius: 1rem;
       background: rgba(255, 255, 255, 0.08);
       box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+      box-sizing: border-box;
+    }
+
+    .admin-card ul.actions {
+      flex-direction: row;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 0.5rem;
+      width: 100%;
+      margin-left: 0;
+    }
+
+    .admin-card .actions li {
+      display: flex;
+      flex: 1 1 11rem;
+      min-width: 0;
+      padding: 0;
+    }
+
+    .admin-card .actions li > * {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+      min-height: 2.75rem;
+      height: auto;
+      padding: 0.55rem 0.75rem;
+      line-height: 1.35;
+      text-align: center;
+      white-space: normal;
     }
 
     .admin-card h1 {
@@ -84,15 +118,24 @@
 
     .verse-actions {
       display: flex;
+      align-items: stretch;
       gap: 0.5rem;
       margin-top: 0.75rem;
       flex-wrap: wrap;
     }
 
     .verse-actions .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 0.45rem 0.8rem;
       font-size: 0.9rem;
       min-width: 5rem;
+      min-height: 2.5rem;
+      height: auto;
+      line-height: 1.3;
+      text-align: center;
+      white-space: normal;
     }
 
     .verse-actions .button.danger {
@@ -101,10 +144,37 @@
     }
 
     .logout-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: rgba(255, 50, 50, 0.2) !important;
       border: 1px solid rgba(255, 50, 50, 0.4);
       padding: 0.5rem 1rem !important;
       font-size: 0.9rem;
+      min-height: 2.75rem;
+      height: auto;
+      line-height: 1.3;
+      white-space: normal;
+    }
+
+    @media screen and (max-width: 736px) {
+      body {
+        align-items: flex-start;
+        padding: 1rem;
+      }
+
+      .admin-card {
+        padding: 1.25rem;
+      }
+
+      #admin-content > div:first-child {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      #admin-content > div:first-child h1 {
+        flex: 1 1 14rem;
+      }
     }
   </style>
   <!-- Supabase JS Library -->
@@ -327,28 +397,50 @@
       });
 
       forceSendBtn.addEventListener('click', async function () {
-        if (!window.confirm('Poslati današnji stih svim aktivnim brojevima? Ovo može ponovo poslati SMS i naplatiti poruke.')) return;
+        const targetVerseId = editingVerseId.value || document.querySelector('#verse-list .verse-item.selected')?.dataset?.id || null;
+
+        if (!targetVerseId) {
+          messageBox.textContent = 'Odaberi stih u listi ili ga uredi pre force akcije.';
+          messageBox.style.color = '#ffa500';
+          messageBox.style.display = 'block';
+          return;
+        }
+
+        if (!window.confirm('Forsirati prikaz i slanje ovog stiha svim aktivnim brojevima? Ovo može ponovo poslati SMS i naplatiti poruke.')) return;
 
         forceSendBtn.disabled = true;
-        forceSendBtn.textContent = 'Slanje...';
+        forceSendBtn.textContent = 'Forsiranje...';
         messageBox.style.display = 'block';
         messageBox.style.color = '#ffa500';
-        messageBox.textContent = 'Priprema SMS poruke...';
+        messageBox.textContent = 'Postavljam odabrani stih za danas...';
 
         try {
-          const result = await window.verseManager.forceSendCurrentVerse();
+          const showFn = window.verseManager && typeof window.verseManager.forceShowVerse === 'function'
+            ? window.verseManager.forceShowVerse
+            : (typeof window.forceShowVerse === 'function' ? window.forceShowVerse : null);
+
+          const sendFn = window.verseManager && typeof window.verseManager.forceSendCurrentVerse === 'function'
+            ? window.verseManager.forceSendCurrentVerse
+            : (typeof window.forceSendCurrentVerse === 'function' ? window.forceSendCurrentVerse : null);
+
+          if (!showFn || !sendFn) {
+            throw new Error('Funkcija za force prikaz ili force send nije dostupna. Osveži stranicu i proveri da je poslednja verzija verse.js učitana.');
+          }
+
+          await showFn(targetVerseId);
+          const result = await sendFn(targetVerseId);
           if (result.smsNotificationError) {
             messageBox.textContent = 'Greška pri slanju SMS-a: ' + result.smsNotificationError;
             messageBox.style.color = '#ff6b6b';
           } else if (result.smsSentTo === 0) {
-            messageBox.textContent = 'Nema aktivnih brojeva za SMS.';
+            messageBox.textContent = 'Odabrani stih je postavljen za danas, ali nema aktivnih brojeva za SMS.';
             messageBox.style.color = '#ffa500';
           } else {
-            messageBox.textContent = 'Današnji stih je stavljen u red za slanje na ' + result.smsSentTo + ' aktivnih brojeva.';
+            messageBox.textContent = 'Odabrani stih je postavljen za danas i poslat na ' + result.smsSentTo + ' aktivnih brojeva.';
             messageBox.style.color = '#51cf66';
           }
         } catch (error) {
-          messageBox.textContent = 'Greška pri slanju: ' + (error.message || error);
+          messageBox.textContent = 'Greška pri force akciji: ' + (error.message || error);
           messageBox.style.color = '#ff6b6b';
         } finally {
           forceSendBtn.disabled = false;
@@ -374,13 +466,25 @@
             return;
           }
 
+          let selectedVerseId = null;
+          try {
+            const raw = localStorage.getItem('sionVerseSettings');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              selectedVerseId = parsed && parsed.selectedVerseId ? String(parsed.selectedVerseId) : null;
+            }
+          } catch (error) {
+            selectedVerseId = null;
+          }
+
           verseList.innerHTML = verses.map(function (verse) {
-            return '<div class="verse-item">' +
+            const isSelected = String(verse.id) === String(selectedVerseId);
+            return '<div class="verse-item' + (isSelected ? ' selected' : '') + '" data-id="' + verse.id + '">' +
                    '<strong>' + (verse.text || '') + '</strong>' +
                    '<span>' + (verse.author || 'Bez autora') + '</span><br />' +
-                   '<small>Prikazan ' + (verse.showCount || 0) + ' puta</small>' +
+                   '<small>Prikazan ' + (verse.showCount || 0) + ' puta' + (isSelected ? ' • trenutno prikazan' : '') + '</small>' +
                    '<div class="verse-actions">' +
-                     '<button type="button" class="button" data-action="edit" data-id="' + verse.id + '">Uredi</button>' +
+                     '<button type="button" class="button" data-action="edit" data-id="' + verse.id + '">Izmeni</button>' +
                      '<button type="button" class="button danger" data-action="delete" data-id="' + verse.id + '">Obriši</button>' +
                    '</div></div>';
           }).join('');

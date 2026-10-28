@@ -4,12 +4,30 @@
 	<head>
 		<title>Stih dana</title>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="stylesheet" href="assets/css/main.css" />
 		<style>
+			#wrapper {
+				height: 100vh;
+				min-height: 100vh;
+				padding: 1.5rem 2rem;
+			}
+
+			#header > * {
+				margin-top: 2rem;
+			}
+
+			#header > *:before {
+				top: calc(-2rem - 1px);
+				height: calc(2rem + 1px);
+			}
+
 			#header .logo {
-				width: 7rem;
-				height: 7rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 8.1rem;
+				height: 8.1rem;
 				border: 0;
 				border-radius: 1rem;
 				overflow: hidden;
@@ -36,6 +54,7 @@
 				display: block;
 				text-decoration: none;
 				color: inherit;
+				border-bottom: 0;
 			}
 
 			.verse-box {
@@ -60,12 +79,145 @@
 				opacity: 0.8;
 			}
 
-				/* Subscribe modal */
-				.subscribe-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
-				.subscribe-modal.visible { display: flex; }
-				.subscribe-panel { background: #111; padding: 1.25rem; border-radius: 0.6rem; width: 320px; max-width: calc(100% - 40px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-				.subscribe-panel h3 { margin-top: 0; }
-				.subscribe-close { position: absolute; right: 16px; top: 16px; background: transparent; border: 0; color:#fff; font-size: 1.1rem; cursor: pointer; }
+			.sms-button {
+				position: fixed;
+				top: 1rem;
+				left: 1rem;
+				z-index: 1100;
+				margin: 0;
+			}
+
+			/* Subscribe modal */
+			.subscribe-modal {
+				display: none;
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.6);
+				z-index: 2000;
+				align-items: center;
+				justify-content: center;
+				padding: 1rem;
+			}
+
+			.subscribe-modal.visible { display: flex; }
+
+			.subscribe-panel {
+				position: relative;
+				background: #111;
+				padding: 1.5rem;
+				border-radius: 0.6rem;
+				width: 360px;
+				max-width: 100%;
+				max-height: calc(100vh - 2rem);
+				overflow-y: auto;
+				box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+			}
+
+			.subscribe-panel h3 {
+				margin-top: 0;
+				padding-right: 2rem;
+			}
+
+			.subscribe-close {
+				position: absolute;
+				right: 0.75rem;
+				top: 0.75rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 1.75rem;
+				height: 1.75rem;
+				padding: 0;
+				background: transparent;
+				border: 0;
+				color: #fff;
+				font-size: 0.8rem;
+				line-height: 1;
+				letter-spacing: 0;
+				cursor: pointer;
+			}
+
+			.sms-mode-switch { display: flex; gap: 0.5rem; margin: 0 0 1rem; }
+			.sms-mode-switch .button { flex: 1; margin: 0; padding: 0 0.5rem; letter-spacing: 0.05rem; }
+			.sms-mode-switch .button[aria-selected="true"] { background: #ffffff; color: #1b1f22 !important; }
+			.sms-mode-switch .button[aria-selected="false"] { background: transparent; color: #ffffff !important; }
+			#subscribe-section[hidden], #unsubscribe-section[hidden] { display: none !important; }
+
+			@media screen and (min-width: 981px) {
+				body.is-article-visible #wrapper {
+					justify-content: center;
+				}
+
+				body.is-article-visible #main {
+					flex-grow: 0;
+				}
+
+				body.is-article-visible {
+					overflow: hidden;
+				}
+
+				#main article#pancevo,
+				#main article#padina {
+					padding-top: clamp(2.5rem, 7vh, 3.5rem);
+					padding-bottom: 1rem;
+				}
+
+				#main article#pancevo .image.main img,
+				#main article#padina .image.main img {
+					width: 75%;
+					margin-right: auto;
+					margin-left: auto;
+				}
+
+				#main article#pancevo p,
+				#main article#padina p {
+					font-size: clamp(0.7rem, 1.8vh, 0.9rem);
+					line-height: 1.5;
+					margin-bottom: 0.8rem;
+				}
+			}
+
+			@media screen and (max-width: 980px) {
+				#wrapper {
+					height: auto;
+					min-height: 100vh;
+					padding: 4rem 1.5rem 2rem;
+				}
+
+				#header > * { margin-top: 2rem; }
+				#header > *:before {
+					top: calc(-2rem - 1px);
+					height: calc(2rem + 1px);
+				}
+			}
+
+			@media screen and (max-width: 736px) {
+				#wrapper { padding: 7rem 1rem 2rem; }
+				#header .content .inner { padding: 2rem 1rem; }
+				#header .logo { width: 8.1rem; height: 8.1rem; }
+
+				.language-switcher { top: 4.5rem; }
+			}
+
+			@media screen and (max-width: 480px) {
+				#wrapper { padding: 7rem 0.75rem 1.5rem; }
+
+				.language-switcher {
+					top: 4.5rem;
+					right: 0.5rem;
+					left: 0.5rem;
+					justify-content: flex-end;
+					gap: 0.2rem;
+				}
+
+				.language-switcher .lang-button {
+					padding: 0.4rem 0.45rem;
+					font-size: 0.6rem;
+					letter-spacing: 0.05rem;
+				}
+
+				.subscribe-panel { padding: 1.25rem; }
+			}
 
 			.admin-link {
 				display: inline-block;
@@ -81,9 +233,9 @@
 	<body class="is-preload">
 
 		<div class="language-switcher">
-			<a href="#" class="lang-button">Slovenský</a>
-			<a href="#" class="lang-button active">Srpski</a>
-			<a href="#" class="lang-button">English</a>
+			<a href="#" class="lang-button" data-language="sk">Slovenský</a>
+			<a href="#" class="lang-button" data-language="sr">Srpski</a>
+			<a href="#" class="lang-button" data-language="en">English</a>
 		</div>
 
 		<!-- Wrapper -->
@@ -117,7 +269,7 @@
 					</header>
 
 				<!-- Main -->
-								<li><a href="#" id="subscribe-button">Subscribe</a></li>
+								<button type="button" class="button sms-button" id="subscribe-button" aria-haspopup="dialog" aria-controls="subscribe-modal">SMS obaveštenja</button>
 					<div id="main">
 							<!-- verse -->
 								<article id="verse">
@@ -401,23 +553,42 @@ print 'It took ' + i + ' iterations to sort the deck.';</code></pre>
 			<div id="bg"></div>
 
 			<!-- Subscribe Modal -->
-			<div id="subscribe-modal" class="subscribe-modal" role="dialog" aria-hidden="true">
+			<div id="subscribe-modal" class="subscribe-modal" role="dialog" aria-modal="true" aria-hidden="true">
 				<div class="subscribe-panel">
-					<button id="subscribe-close" class="subscribe-close">✕</button>
-					<h3>Subscribe</h3>
-					<p>Enter your phone number to receive updates.</p>
-					<form id="subscribe-form">
-						<div>
-							<label for="subscribe-phone">Phone</label>
-							<input id="subscribe-phone" name="phone" type="tel" placeholder="+381600000000" />
-						</div>
-						<!-- honeypot field to deter bots -->
-						<input id="subscribe-hp" name="hp" type="text" style="display:none" autocomplete="off" />
-						<div style="margin-top:0.6rem;"> 
-							<button type="submit" class="button">Submit</button>
-						</div>
-						<p id="subscribe-message" style="margin-top:0.6rem;color:#fff;"></p>
-					</form>
+					<button id="subscribe-close" class="subscribe-close" type="button" aria-label="Zatvori">✕</button>
+					<h3>SMS obaveštenja</h3>
+					<div class="sms-mode-switch" role="tablist" aria-label="SMS opcije">
+						<button id="subscribe-mode-button" class="button small primary" type="button" role="tab" aria-selected="true">Prijava</button>
+						<button id="unsubscribe-mode-button" class="button small" type="button" role="tab" aria-selected="false">Odjava</button>
+					</div>
+					<section id="subscribe-section" role="tabpanel" aria-labelledby="subscribe-mode-button">
+						<p>Unesite broj telefona za SMS obaveštenja.</p>
+						<form id="subscribe-form">
+							<div>
+								<label for="subscribe-phone">Broj telefona</label>
+								<input id="subscribe-phone" name="phone" type="tel" placeholder="+381600000000" />
+							</div>
+							<input id="subscribe-hp" name="hp" type="text" style="display:none" autocomplete="off" />
+							<div style="margin-top:0.6rem;">
+								<button type="submit" class="button">Prijavi broj</button>
+							</div>
+							<p id="subscribe-message" style="margin-top:0.6rem;color:#fff;"></p>
+						</form>
+					</section>
+					<section id="unsubscribe-section" role="tabpanel" aria-labelledby="unsubscribe-mode-button" hidden>
+						<p>Unesite broj koji želite da odjavite sa SMS obaveštenja.</p>
+						<form id="unsubscribe-form">
+							<div>
+								<label for="unsubscribe-phone">Broj telefona</label>
+								<input id="unsubscribe-phone" name="phone" type="tel" placeholder="+381600000000" />
+							</div>
+							<input id="unsubscribe-hp" name="hp" type="text" style="display:none" autocomplete="off" />
+							<div style="margin-top:0.6rem;">
+								<button type="submit" class="button">Odjavi broj</button>
+							</div>
+							<p id="unsubscribe-message" style="margin-top:0.6rem;color:#fff;" aria-live="polite"></p>
+						</form>
+					</section>
 				</div>
 			</div>
 
@@ -428,7 +599,8 @@ print 'It took ' + i + ' iterations to sort the deck.';</code></pre>
 			<script src="assets/js/util.js"></script>
 			<script src="assets/js/main.js"></script>
 			<script src="assets/js/verse.js"></script>
-			<script src="assets/js/subscribe.js"></script>
+			<script src="assets/js/subscribe.js?v=3"></script>
+			<script src="assets/js/language.js"></script>
 
 	</body>
 </html>

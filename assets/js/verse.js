@@ -173,7 +173,7 @@
     return (data || []).map(normalizeVerse);
   }
 
-  async function selectVerseForToday() {
+  async function selectVerseForToday(forcedVerseId) {
     const verses = await listVerses();
 
     if (!verses.length) {
@@ -183,33 +183,37 @@
     const today = getTodayKey();
     const settings = getSettings();
 
-    if (settings.lastShownDate === today && settings.selectedVerseId) {
-      const existingVerse = verses.find(function (verse) {
-        return verse.id === settings.selectedVerseId;
-      });
-
-      if (existingVerse) {
-        return existingVerse;
-      }
-    }
-
-    const zeroShowVerses = verses.filter(function (verse) {
-      return (verse.showCount || 0) === 0;
-    });
-
     let selectedVerse = null;
 
-    if (zeroShowVerses.length) {
-      selectedVerse = zeroShowVerses[zeroShowVerses.length - 1];
-    } else {
-      const minimumShows = Math.min.apply(null, verses.map(function (verse) {
-        return verse.showCount || 0;
-      }));
-      const candidates = verses.filter(function (verse) {
-        return (verse.showCount || 0) === minimumShows;
+    if (forcedVerseId) {
+      selectedVerse = verses.find(function (verse) {
+        return String(verse.id) === String(forcedVerseId);
       });
-      const randomIndex = Math.floor(Math.random() * candidates.length);
-      selectedVerse = candidates[randomIndex];
+    }
+
+    if (!selectedVerse && settings.lastShownDate === today && settings.selectedVerseId) {
+      selectedVerse = verses.find(function (verse) {
+        return String(verse.id) === String(settings.selectedVerseId);
+      });
+    }
+
+    if (!selectedVerse) {
+      const zeroShowVerses = verses.filter(function (verse) {
+        return (verse.showCount || 0) === 0;
+      });
+
+      if (zeroShowVerses.length) {
+        selectedVerse = zeroShowVerses[zeroShowVerses.length - 1];
+      } else {
+        const minimumShows = Math.min.apply(null, verses.map(function (verse) {
+          return verse.showCount || 0;
+        }));
+        const candidates = verses.filter(function (verse) {
+          return (verse.showCount || 0) === minimumShows;
+        });
+        const randomIndex = Math.floor(Math.random() * candidates.length);
+        selectedVerse = candidates[randomIndex];
+      }
     }
 
     if (!selectedVerse) {
@@ -237,8 +241,21 @@
     });
   }
 
-  async function forceSendCurrentVerse() {
-    const verse = await selectVerseForToday();
+  async function forceShowVerse(verseId) {
+    if (!verseId) {
+      throw new Error('Nije izabran stih za forsirani prikaz.');
+    }
+
+    const verse = await selectVerseForToday(verseId);
+    if (!verse || !verse.text) {
+      throw new Error('Izabrani stih ne postoji ili nema tekst.');
+    }
+
+    return verse;
+  }
+
+  async function forceSendCurrentVerse(verseId) {
+    const verse = await selectVerseForToday(verseId);
     if (!verse || !verse.text) {
       throw new Error('Nema stiha koji može da se pošalje.');
     }
@@ -316,8 +333,12 @@
     deleteVerse: deleteVerse,
     listVerses: listVerses,
     selectVerseForToday: selectVerseForToday,
+    forceShowVerse: forceShowVerse,
     forceSendCurrentVerse: forceSendCurrentVerse
   };
+
+  window.forceShowVerse = forceShowVerse;
+  window.forceSendCurrentVerse = forceSendCurrentVerse;
 
   window.addEventListener('load', renderVerse);
 })();

@@ -1,8 +1,8 @@
 Subscribe feature
 
-The subscription form writes to the Supabase `public.phones` table. It sends `phone` as a number and sets `active` to `true`. The Supabase URL and anon key are configured in `assets/js/subscribe.js`; the anon key is intended for browser use and must only have the permissions granted by Row Level Security.
+The subscription form calls the `subscribe-phone` Supabase Edge Function. It sends `phone` as a number; the function inserts a new row or reactivates an existing one by setting `active = true`. The Supabase URL and anon key are configured in `assets/js/subscribe.js`; the anon key is used only to invoke the function.
 
-Create the table and enable anonymous insert-only access in the Supabase SQL editor:
+Create the table and enable Row Level Security in the Supabase SQL editor:
 
 ```sql
 create table if not exists public.phones (
@@ -11,18 +11,18 @@ create table if not exists public.phones (
 );
 
 alter table public.phones enable row level security;
-grant usage on schema public to anon;
-grant insert on public.phones to anon;
-
 drop policy if exists "Allow anonymous phone inserts" on public.phones;
-create policy "Allow anonymous phone inserts"
-on public.phones
-for insert
-to anon
-with check (phone > 0 and active = true);
+revoke all on public.phones from anon;
 ```
 
-Run this SQL in the Supabase SQL Editor for the same project configured in `assets/js/subscribe.js`. It grants only schema usage and row insertion to the public `anon` role, and recreates the insert policy. No `SELECT`, `UPDATE`, or `DELETE` policy is needed by the form. The public form deliberately does not reuse a saved Supabase admin login, so the request uses the `anon` role targeted by this policy. Hard-refresh the site after updating its JavaScript. If it still fails, inspect the browser console's `Supabase subscription insert failed` error for the database error code/message and verify the SQL ran against this exact project.
+Run this SQL in the Supabase SQL Editor for the same project configured in `assets/js/subscribe.js`. Do not grant the public `anon` role direct access to `phones`; both subscribe and unsubscribe changes are performed by Edge Functions using the server-side service-role key. Deploy both functions after linking the CLI to the project:
+
+```powershell
+supabase functions deploy subscribe-phone
+supabase functions deploy unsubscribe-phone
+```
+
+Hard-refresh the site after updating its JavaScript. If a request fails, inspect the browser console and verify that both functions were deployed to this exact project.
 
 Use `bigint` (`int8`) rather than PostgreSQL `integer` (`int4`), whose maximum value is too small for most phone numbers. Since the requested database type is numeric, the form strips a leading `+`; leading zeroes are also not preserved. Use a `text` column instead if those distinctions matter.
 
@@ -33,7 +33,17 @@ alter table public.phones
 alter column phone type bigint using phone::bigint;
 ```
 
-The client performs basic format validation and includes a honeypot/timing check. For a public production site, use a server-side endpoint or Supabase Edge Function for authoritative phone validation and rate limiting; browser-side checks are not a security boundary.
+The client and Edge Functions perform phone format validation; the form includes honeypot and timing checks. For a public production site, add server-side rate limiting as well; browser-side checks are not a security boundary.
+
+### Unsubscribe from SMS
+
+The public form calls the `unsubscribe-phone` Supabase Edge Function. It uses the server-side service-role key to change an active matching row in `public.phones` to `active = false`; the anon role receives no table `UPDATE` permission. Deploy it to the same Supabase project as the site:
+
+```powershell
+supabase functions deploy unsubscribe-phone
+```
+
+The function returns the same inactive-number result when a phone is missing or already inactive. The request is public and does not verify ownership of the number, so anyone who knows a number can unsubscribe it. Use an SMS verification code if ownership verification is required.
 
 ## Verse SMS notifications through SMS Gate
 
