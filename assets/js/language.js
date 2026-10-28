@@ -7,6 +7,8 @@
     : match ? match[1] : 'sr';
   const isFileProtocol = window.location.protocol === 'file:';
   const baseUrl = new URL(match ? '../' : './', window.location.href);
+  const languageSelect = document.querySelector('.language-switcher .language-select');
+  const languageUrls = {};
 
   document.documentElement.lang = currentLanguage;
 
@@ -21,6 +23,7 @@
     } else {
       link.href = new URL(`${language}/`, baseUrl).href;
     }
+    languageUrls[language] = link.href;
     link.classList.toggle('active', language === currentLanguage);
     if (language === currentLanguage) {
       link.setAttribute('aria-current', 'page');
@@ -28,4 +31,12 @@
       link.removeAttribute('aria-current');
     }
   });
+
+  if (languageSelect) {
+    languageSelect.value = currentLanguage;
+    languageSelect.addEventListener('change', () => {
+      const target = languageUrls[languageSelect.value];
+      if (target) window.location.href = target;
+    });
+  }
 })();

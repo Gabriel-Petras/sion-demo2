@@ -87,6 +87,8 @@
 				margin: 0;
 			}
 
+			.language-switcher .language-select { display: none; }
+
 			/* Subscribe modal */
 			.subscribe-modal {
 				display: none;
@@ -199,23 +201,50 @@
 				.language-switcher { top: 4.5rem; }
 			}
 
-			@media screen and (max-width: 480px) {
-				#wrapper { padding: 7rem 0.75rem 1.5rem; }
-
-				.language-switcher {
-					top: 4.5rem;
-					right: 0.5rem;
-					left: 0.5rem;
-					justify-content: flex-end;
-					gap: 0.2rem;
+			@media screen and (max-width: 980px) {
+				.sms-button {
+					top: 1rem;
+					left: 1rem;
+					padding: 0 0.55rem;
+					font-size: 0.62rem;
+					letter-spacing: 0.04rem;
 				}
 
-				.language-switcher .lang-button {
-					padding: 0.4rem 0.45rem;
+				.language-switcher {
+					top: 1rem;
+					right: 1rem;
+					left: auto;
+					padding: 0;
+					gap: 0;
+				}
+
+				.language-switcher .lang-button { display: none; }
+
+				.language-switcher .language-select {
+					display: block;
+					width: 8rem;
+					height: 2.75rem;
+					padding: 0 1.8rem 0 0.65rem;
+					border: 1px solid rgba(255, 255, 255, 0.35);
+					border-radius: 4px;
+					background-color: rgba(27, 31, 34, 0.95);
+					background-image: linear-gradient(45deg, transparent 50%, #fff 50%), linear-gradient(135deg, #fff 50%, transparent 50%);
+					background-position: calc(100% - 13px) 1.15rem, calc(100% - 9px) 1.15rem;
+					background-size: 4px 4px, 4px 4px;
+					background-repeat: no-repeat;
+					color: #fff;
 					font-size: 0.6rem;
 					letter-spacing: 0.05rem;
 				}
 
+				.language-switcher .language-select option {
+					background: #1b1f22;
+					color: #fff;
+				}
+			}
+
+			@media screen and (max-width: 480px) {
+				#wrapper { padding: 7rem 0.75rem 1.5rem; }
 				.subscribe-panel { padding: 1.25rem; }
 			}
 
@@ -236,6 +265,11 @@
 			<a href="#" class="lang-button" data-language="sk">Slovenský</a>
 			<a href="#" class="lang-button" data-language="sr">Srpski</a>
 			<a href="#" class="lang-button" data-language="en">English</a>
+			<select class="language-select" aria-label="Izaberite jezik">
+				<option value="sr">Srpski</option>
+				<option value="sk">Slovenský</option>
+				<option value="en">English</option>
+			</select>
 		</div>
 
 		<!-- Wrapper -->
